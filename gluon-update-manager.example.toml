@@ -12,9 +12,9 @@ branch = "stable"
 # A URL where to download the meshviewer.json output which is used by the map
 meshinfo = "http://map.ff-en.de/data/wtt/meshviewer.json"
 # A host that is scheduled for update will be redirected here
-on-update = "/wetter/2020/sysupgrade/"
+on-update = "/wetter/2020/sysupgrade"
 # A host that is not scheduled for update will be redirected here
-on-noupdate = "/wetter/2019/sysupgrade/"
+on-noupdate = "/wetter/2019/sysupgrade"
 # If true, nodes which are unknown to the map will be updated
 update-default = false
 
