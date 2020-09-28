@@ -8,21 +8,6 @@ use serde::ser::SerializeTuple;
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct MacAddr([u8; 6]);
 
-impl MacAddr {
-    pub fn to_bytes(&self) -> &[u8; 6] {
-        &self.0
-    }
-    pub fn into_bytes(self) -> [u8; 6] { self.0 }
-
-    pub fn from_bytes(bytes: [u8; 6]) -> Self {
-        MacAddr(bytes)
-    }
-
-    pub fn unspecified() -> MacAddr {
-        MacAddr([0; 6])
-    }
-}
-
 impl fmt::Display for MacAddr {
     fn fmt<'a>(&self, f: &mut fmt::Formatter<'a>) -> Result<(), fmt::Error> {
         if f.alternate() {

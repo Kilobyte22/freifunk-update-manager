@@ -13,7 +13,6 @@ use std::collections::HashMap;
 use crate::graph::UpdatePolicy;
 use tokio::stream::StreamExt;
 use std::net::SocketAddr;
-use std::mem;
 use clap::clap_app;
 
 pub struct MainState {
@@ -42,7 +41,7 @@ async fn generate_graph(config: &SiteConfig) -> Result<graph::Graph, failure::Er
     Ok(graph::Graph::build(&meshinfo, config))
 }
 
-async fn configurator_task(site: Arc<SiteState>, updater: mpsc::Sender<()>) {
+async fn configurator_task(site: Arc<SiteState>, mut updater: mpsc::Sender<()>) -> Result<(), failure::Error> {
     loop {
         time::delay_for(time::Duration::from_secs(site.config.refresh_interval)).await;
 
@@ -51,9 +50,15 @@ async fn configurator_task(site: Arc<SiteState>, updater: mpsc::Sender<()>) {
             Ok(new_graph) => {
                 let mut graph = site.graph.write().await;
                 *graph = new_graph;
+                updater.send(()).await?;
             },
             Err(e) => {
-                log::error!("Failed to refresh node graph for site {}/{}", site.config.name, site.config.branch)
+                log::error!(
+                    "Failed to refresh node graph for site {}/{}: {}",
+                    site.config.name,
+                    site.config.branch,
+                    e
+                )
             }
         }
     }

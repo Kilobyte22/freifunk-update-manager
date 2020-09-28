@@ -1,11 +1,9 @@
-use actix_web::{get, web, App, HttpServer, Responder, HttpRequest, middleware, FromRequest, Error, ResponseError, HttpResponse};
+use actix_web::{web, App, HttpServer, Responder, HttpRequest, middleware, FromRequest, ResponseError, HttpResponse};
 use crate::MainState;
 use std::sync::Arc;
 use actix_web::dev::{PayloadStream, Payload};
-use reqwest::header;
-use futures::{future, TryFutureExt};
+use futures::future;
 use std::fmt;
-use failure::_core::fmt::Formatter;
 use std::net::IpAddr;
 use crate::graph::UpdatePolicy;
 
@@ -43,12 +41,14 @@ async fn update_check(
 
         Ok(
             if should_update && !site_state.config.dry_run {
+                let path = format!("{}/{}", site_state.config.on_update, file);
                 HttpResponse::TemporaryRedirect()
-                    .header("Location", site_state.config.on_update.clone())
+                    .header("Location", path)
                     .finish()
             } else {
+                let path = format!("{}/{}", site_state.config.on_update, file);
                 HttpResponse::TemporaryRedirect()
-                    .header("Location", site_state.config.on_noupdate.clone())
+                    .header("Location", path)
                     .finish()
             }
         )
@@ -81,14 +81,14 @@ impl FromRequest for ForwardedFor {
     type Future = future::Ready<Result<Self, Self::Error>>;
     type Config = ();
 
-    fn from_request(req: &HttpRequest, payload: &mut Payload<PayloadStream>) -> Self::Future {
+    fn from_request(req: &HttpRequest, _payload: &mut Payload<PayloadStream>) -> Self::Future {
         future::ready((|| {
             if let Some(hdr) = req.headers().get("X-Forwarded-For") {
                 Ok(ForwardedFor(
                     hdr.to_str()
-                        .map_err(|e| StringError::new("Header is invalid value"))?
+                        .map_err(|_| StringError::new("Header is invalid value"))?
                         .parse::<IpAddr>()
-                        .map_err(|e| StringError::new("Header is invalid value"))?
+                        .map_err(|_| StringError::new("Header is invalid value"))?
                         .to_owned()
                 ))
             } else {
