@@ -1,0 +1,28 @@
+listen = "[::1]:6060"
+
+[[sites]]
+
+# URL Format: /{site}/{branch}/sysupgrade/
+
+latest-version = "1.3"
+# site name, used for the URL
+name = "wetter"
+# branch name, used for the url
+branch = "stable"
+# A URL where to download the meshviewer.json output which is used by the map
+meshinfo = "http://map.ff-en.de/data/wtt/meshviewer.json"
+# A host that is scheduled for update will be redirected here
+on-update = "/wetter/2020/sysupgrade/"
+# A host that is not scheduled for update will be redirected here
+on-noupdate = "/wetter/2019/sysupgrade/"
+# If true, nodes which are unknown to the map will be updated
+update-default = false
+
+# If enabled, all hosts will be sent to the noupdate url. However the software will log if an
+# update would have happened
+dry-run = true
+
+# If enabled, a router which has autoupdate disabled will be treated as having latest firmware
+ignore-autoupdate-off = true
+# How often should the data from the map be refreshed
+refresh-interval = 60
