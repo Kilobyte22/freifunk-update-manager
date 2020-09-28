@@ -132,7 +132,7 @@ async fn push_state_to_systemd_task(state: Arc<MainState>, mut recv: mpsc::Recei
         }
         let status = res.join(", ") + " migrated/cleared/blocked/total";
         log::debug!("Status update: {}", status);
-        sd_notify::notify(true, &[NotifyState::Custom(status)])?;
+        sd_notify::notify(true, &[NotifyState::Status(status)])?;
     }
     Ok(())
 }
