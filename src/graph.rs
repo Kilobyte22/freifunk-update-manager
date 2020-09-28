@@ -2,7 +2,7 @@ use crate::meshinfo::MeshInfo;
 use slotmap::{DenseSlotMap, SecondaryMap};
 use std::collections::HashMap;
 use std::net::IpAddr;
-use std::cmp;
+use std::{cmp, mem};
 use crate::config::SiteConfig;
 slotmap::new_key_type! { pub struct NodeKey; }
 
@@ -22,8 +22,22 @@ impl Graph {
 
         log::debug!("Graph building pass 1: Setting up data");
         for node in &info.nodes {
+
+            let mut inner_node = (*node).clone();
+            // Workaround for hosts sending mac addresses as nexthop - host will be assumed
+            // to not have any uplink
+            let mut set_nexthop = None;
+            if let Some(nexthop) = &mut inner_node.gateway_nexthop {
+                if nexthop.is_mac() {
+                    log::warn!("Host {} has weird nexthop {}, using gateway", node.hostname, nexthop);
+                    set_nexthop = Some(node.gateway.clone());
+                }
+            };
+            if let Some(set_nexthop) = set_nexthop {
+                inner_node.gateway_nexthop = set_nexthop;
+            }
             let key = nodes.insert(NodeContainer {
-                node: (*node).clone(),
+                node: inner_node,
                 uplink: None,
                 downlinks: vec![]
             });
@@ -35,9 +49,25 @@ impl Graph {
         }
 
         log::debug!("Graph building pass 2: building links");
-        for (_, node) in &mut nodes {
+        let mut downlinks = SecondaryMap::<NodeKey, Vec<NodeKey>>::new();
+        for (key, node) in &mut nodes {
             if let Some(uplink) = &node.node.gateway_nexthop {
-                node.uplink = id_lookup.get(uplink).map(|key| *key)
+                let uplink_key = id_lookup.get(uplink)
+                    .map(|key| *key)
+                    .expect(&format!("ID {} not found", uplink));
+                node.uplink = Some(uplink_key);
+
+                if let Some(uplink_downlinks) = downlinks.get_mut(uplink_key) {
+                    uplink_downlinks.push(key);
+                } else {
+                    downlinks.insert(uplink_key, vec![key]);
+                }
+            }
+        }
+
+        for (key, downlinks) in downlinks {
+            if let Some(node) = nodes.get_mut(key) {
+                node.downlinks = downlinks
             }
         }
 
@@ -85,17 +115,37 @@ impl Graph {
         for (key, node) in &nodes {
             let mut policy = UpdatePolicy::Ready;
             if node.node.firmware.release == config.latest_version {
+                log::trace!(
+                    "{} is version {} - marking as finished",
+                    node.node.hostname,
+                    node.node.firmware.release
+                );
                 policy = UpdatePolicy::Finished;
             } else {
+                log::trace!("{} needs update", node.node.hostname);
                 for downlink_key in &node.downlinks {
                     let downlink = nodes.get(*downlink_key).unwrap();
                     if downlink.node.firmware.release != config.latest_version {
-                        if downlink.node.autoupdater.enabled || !config.ignore_autoupdate_off {
+                        if downlink.node.autoupdater.enabled {
+                            log::trace!(
+                                "{} has downlink {} which needs update first",
+                                node.node.hostname,
+                                downlink.node.hostname
+                            );
+                            policy = UpdatePolicy::Pending;
+                        } else if !config.ignore_autoupdate_off {
+                            log::trace!(
+                                "{} has downlink {} which has autoupdate disabled. beeing carfule",
+                                node.node.hostname,
+                                downlink.node.hostname
+                            );
                             policy = UpdatePolicy::Pending;
                         }
                     }
                 }
             }
+
+            log::debug!("Host {} has policy {:?}", node.node.hostname, policy);
 
             update_policy.insert(key, policy);
         }
@@ -116,7 +166,7 @@ pub struct NodeContainer {
     pub downlinks: Vec<NodeKey>
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum UpdatePolicy {
     Pending,
     Ready,

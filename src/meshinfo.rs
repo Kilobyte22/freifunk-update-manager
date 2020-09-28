@@ -86,6 +86,12 @@ pub enum LinkType {
 #[serde(transparent)]
 pub struct NodeID(String);
 
+impl NodeID {
+    pub fn is_mac(&self) -> bool {
+        self.0.contains(":")
+    }
+}
+
 impl fmt::Display for NodeID {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
