@@ -29,7 +29,7 @@ impl Graph {
             let mut set_nexthop = None;
             if let Some(nexthop) = &mut inner_node.gateway_nexthop {
                 if nexthop.is_mac() {
-                    log::warn!("Host {} has weird nexthop {}, using gateway", node.hostname, nexthop);
+                    log::debug!("Host {} has weird nexthop {}, using gateway", node.hostname, nexthop);
                     set_nexthop = Some(node.gateway.clone());
                 }
             };
