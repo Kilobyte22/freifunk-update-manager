@@ -61,7 +61,7 @@ pub async fn generate(state: &MainState) -> HashMap<String, SiteDump> {
                 }
             }
         }
-        ret.insert(format!("{}/{}", site_name, branch), site_ret);
+        ret.insert(format!("{}_{}", site_name, branch), site_ret);
     }
     ret
 }
