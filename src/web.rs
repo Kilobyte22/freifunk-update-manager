@@ -46,7 +46,7 @@ async fn update_check(
                     .header("Location", path)
                     .finish()
             } else {
-                let path = format!("{}/{}", site_state.config.on_update, file);
+                let path = format!("{}/{}", site_state.config.on_noupdate, file);
                 HttpResponse::TemporaryRedirect()
                     .header("Location", path)
                     .finish()
