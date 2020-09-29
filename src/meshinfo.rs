@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use std::net::IpAddr;
 use std::fmt;
 use crate::mac::MacAddr;
@@ -82,7 +82,7 @@ pub enum LinkType {
     Other
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone)]
 #[serde(transparent)]
 pub struct NodeID(String);
 

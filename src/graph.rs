@@ -2,8 +2,9 @@ use crate::meshinfo::MeshInfo;
 use slotmap::{DenseSlotMap, SecondaryMap};
 use std::collections::HashMap;
 use std::net::IpAddr;
-use std::{cmp, mem};
+use std::cmp;
 use crate::config::SiteConfig;
+use crate::persistence::PersistentState;
 slotmap::new_key_type! { pub struct NodeKey; }
 
 pub struct Graph {
@@ -15,7 +16,7 @@ pub struct Graph {
 }
 
 impl Graph {
-    pub fn build(info: &MeshInfo, config: &SiteConfig) -> Graph {
+    pub fn build(info: &MeshInfo, config: &SiteConfig, persistent: &mut PersistentState) -> Graph {
         let mut nodes = DenseSlotMap::with_capacity_and_key(info.nodes.len());
         let mut id_lookup = HashMap::<crate::meshinfo::NodeID, NodeKey>::new();
         let mut ip_addrs = HashMap::new();
@@ -71,7 +72,18 @@ impl Graph {
             }
         }
 
-        log::debug!("Graph building pass 2: calculating node depth");
+        let mut update_policy = SecondaryMap::new();
+        log::debug!("Graph building pass 3: Factoring in if nodes have already received an update and failed at it");
+        process_update_timeouts(
+            &mut nodes,
+            &mut update_policy,
+            persistent,
+            chrono::Duration::seconds(config.update_timeout as i64),
+            config.broken_threshold as u32,
+            &config.latest_version
+        );
+
+        log::debug!("Graph building pass 4: calculating node depth");
         let mut depths = SecondaryMap::with_capacity(nodes.len());
 
         let mut max_depth = 0;
@@ -110,9 +122,16 @@ impl Graph {
             }
         }
 
-        let mut update_policy = SecondaryMap::new();
+        log::debug!("Graph building pass 5: determining per-node update policy");
 
         for (key, node) in &nodes {
+            if update_policy.contains_key(key) {
+                log::trace!(
+                    "UpdatePolicy for {} has already been determined, not recalculating",
+                    node.node.hostname
+                );
+                continue;
+            }
             let mut policy = UpdatePolicy::Ready;
             if node.node.firmware.release == config.latest_version {
                 log::trace!(
@@ -125,7 +144,11 @@ impl Graph {
                 log::trace!("{} needs update", node.node.hostname);
                 for downlink_key in &node.downlinks {
                     let downlink = nodes.get(*downlink_key).unwrap();
-                    if downlink.node.firmware.release != config.latest_version {
+                    let down_pol = update_policy.get(*downlink_key);
+                    let update_override = down_pol == Some(&UpdatePolicy::Finished)
+                        || down_pol == Some(&UpdatePolicy::Broken);
+                    let firm_updated = downlink.node.firmware.release != config.latest_version;
+                    if !update_override && firm_updated {
                         if downlink.node.autoupdater.enabled {
                             log::trace!(
                                 "{} has downlink {} which needs update first",
@@ -135,7 +158,7 @@ impl Graph {
                             policy = UpdatePolicy::Pending;
                         } else if !config.ignore_autoupdate_off {
                             log::trace!(
-                                "{} has downlink {} which has autoupdate disabled. beeing carfule",
+                                "{} has downlink {} which has autoupdate disabled. being carful",
                                 node.node.hostname,
                                 downlink.node.hostname
                             );
@@ -145,7 +168,7 @@ impl Graph {
                 }
             }
 
-            log::debug!("Host {} has policy {:?}", node.node.hostname, policy);
+            log::trace!("Host {} has policy {:?}", node.node.hostname, policy);
 
             update_policy.insert(key, policy);
         }
@@ -160,6 +183,59 @@ impl Graph {
     }
 }
 
+pub fn process_update_timeouts(
+    nodes: &mut DenseSlotMap<NodeKey, NodeContainer>,
+    update_policy: &mut SecondaryMap<NodeKey, UpdatePolicy>,
+    pstate: &mut PersistentState,
+    timeout: chrono::Duration,
+    broken_threshold: u32,
+    latest_fw: &str
+) {
+    let now = chrono::Utc::now();
+    for (key, node) in nodes {
+        if let Some(node_state) = pstate.node_state.get_mut(&node.node.node_id) {
+            if let Some(updated_at) = node_state.update_received.clone() {
+                // The host has recently been update
+                if now - updated_at > timeout {
+                    if node.node.is_online {
+                        if node.node.firmware.release != latest_fw {
+                            // Node has failed to update, increase counter
+                            node_state.update_received = None;
+                            node_state.update_attempts += 1;
+                            log::trace!(
+                                "Node {} has failed update {} times",
+                                node.node.hostname,
+                                node_state.update_attempts
+                            );
+                            if node_state.update_attempts >= broken_threshold {
+                                update_policy.insert(key, UpdatePolicy::Broken);
+                                log::warn!(
+                                    "Node {} has failed update {} times and is now considered broken",
+                                    node.node.hostname,
+                                    node_state.update_attempts
+                                );
+                            } else {
+                                update_policy.insert(key, UpdatePolicy::Ready);
+                            }
+                        }
+                    } else {
+                        log::trace!(
+                            "Node {} gone offline for extended time, assuming it was successful",
+                            node.node.hostname
+                        );
+                        // Node is still offline, assume it was successful
+                        update_policy.insert(key, UpdatePolicy::Finished);
+                    }
+                }
+            } else {
+                if node_state.update_attempts >= broken_threshold {
+                    update_policy.insert(key, UpdatePolicy::Broken);
+                }
+            }
+        }
+    }
+}
+
 pub struct NodeContainer {
     pub node: crate::meshinfo::Node,
     pub uplink: Option<NodeKey>,
@@ -168,7 +244,13 @@ pub struct NodeContainer {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum UpdatePolicy {
+    /// A Router cannot be updated yet, as it is waiting for downlinks to finish
     Pending,
+    /// A router which can now be updated
     Ready,
-    Finished
+    /// A router which is confirmed to be on latest version (either by timeout or active
+    /// confirmation
+    Finished,
+    /// A router which has had multiple updates fail and will just be ignored
+    Broken
 }

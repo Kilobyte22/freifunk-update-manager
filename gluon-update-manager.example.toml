@@ -26,3 +26,11 @@ dry-run = true
 ignore-autoupdate-off = true
 # How often should the data from the map be refreshed
 refresh-interval = 60
+# After a certain time of being offline after receiving an update a node is considered successfully updated.
+# This is the setting for that time in seconds
+update-timeout = 900
+
+# After how many failed update attempts (router came back with an old version even though it received the update
+broken-threshold = 3
+# Storage file for persistent state of the update manager
+state-file = "/var/lib/gluon-update-manager/witten.json"

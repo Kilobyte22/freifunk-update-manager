@@ -23,7 +23,13 @@ async fn update_check(
             let pol = locked_graph.update_policy.get(*node_key).unwrap();
             match pol {
                 UpdatePolicy::Ready => {
-                    log::info!("Host {} is not updated, pushing update", node.node.hostname);
+                    log::info!(
+                        "Host {} is not updated, pushing update and marking it as updated",
+                        node.node.hostname
+                    );
+                    let mut p = site_state.persistent.lock().await;
+                    p.update_node(&node.node.node_id);
+                    site_state.persistent_saver.clone().send(()).await.unwrap();
                     true
                 },
                 UpdatePolicy::Finished => {
@@ -33,6 +39,10 @@ async fn update_check(
                 UpdatePolicy::Pending => {
                     log::info!("Host {} is not yet ready to update", node.node.hostname);
                     false
+                }
+                UpdatePolicy::Broken => {
+                    log::info!("Host {} is marked as broken, trying to update anyways...", node.node.hostname);
+                    true
                 }
             }
         } else {
@@ -57,6 +67,13 @@ async fn update_check(
     }
 }
 
+async fn node_dump(
+    state: web::Data<Arc<MainState>>
+) -> impl Responder {
+    let dump = crate::dump::generate(&*state).await;
+    web::Json(dump)
+}
+
 pub async fn main(state: Arc<MainState>) -> Result<(), failure::Error> {
     let listen = state.listen_addr.clone();
     HttpServer::new(move || {
@@ -66,6 +83,10 @@ pub async fn main(state: Arc<MainState>) -> Result<(), failure::Error> {
             .service(
                 web::resource("/{site}/{branch}/sysupgrade/{file}")
                     .route(web::get().to(update_check))
+            )
+            .service(
+                web::resource("/node_dump.json")
+                    .route(web::get().to(node_dump))
             )
     })
         .bind(&listen)?
