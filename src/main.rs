@@ -141,7 +141,7 @@ async fn main() -> Result<(), failure::Error> {
 
     task::spawn(push_state_to_systemd_task(state.clone(), state_rx));
 
-    sd_notify::notify(true, &[NotifyState::Ready])?;
+    sd_notify::notify(false, &[NotifyState::Ready])?;
 
     web::main(state).await?;
 
@@ -174,7 +174,7 @@ async fn push_state_to_systemd_task(state: Arc<MainState>, mut recv: mpsc::Recei
         }
         let status = res.join(", ") + " migrated/cleared/blocked/total";
         log::debug!("Status update: {}", status);
-        sd_notify::notify(true, &[NotifyState::Status(status)])?;
+        sd_notify::notify(false, &[NotifyState::Status(status)])?;
     }
     Ok(())
 }
