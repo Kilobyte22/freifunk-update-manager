@@ -33,4 +33,4 @@ update-timeout = 900
 # After how many failed update attempts (router came back with an old version even though it received the update
 broken-threshold = 3
 # Storage file for persistent state of the update manager
-state-file = "/var/lib/gluon-update-manager/witten.json"
+state-file = "/var/lib/gluon-update-manager/wetter.json"

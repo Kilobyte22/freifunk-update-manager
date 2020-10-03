@@ -12,6 +12,7 @@ pub struct Graph {
     pub ip_addrs: HashMap<IpAddr, NodeKey>,
     pub depths: SecondaryMap<NodeKey, u8>,
     pub max_depth: u8,
+    pub deepest_node: Option<NodeKey>,
     pub update_policy: SecondaryMap<NodeKey, UpdatePolicy>,
 }
 
@@ -87,6 +88,7 @@ impl Graph {
         let mut depths = SecondaryMap::with_capacity(nodes.len());
 
         let mut max_depth = 0;
+        let mut deepest_node = None;
 
         {
             let mut node_list: Vec<_> = nodes.keys().collect();
@@ -111,7 +113,10 @@ impl Graph {
                     if let Some(d) = set_depth {
                         depths.insert(key, d);
                         remove = true;
-                        max_depth = cmp::max(d, max_depth)
+                        if d > max_depth {
+                            max_depth = d;
+                            deepest_node = Some(key);
+                        }
                     }
                 }
                 if remove {
@@ -173,11 +178,17 @@ impl Graph {
             update_policy.insert(key, policy);
         }
 
+        if let Some(deepest_node) = deepest_node {
+            let node = nodes.get(deepest_node).unwrap();
+            log::debug!("Deepest node is {} at a depth of {}", node.node.hostname, max_depth)
+        }
+
         Graph {
             nodes,
             ip_addrs,
             depths,
             max_depth,
+            deepest_node,
             update_policy
         }
     }
