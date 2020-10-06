@@ -22,6 +22,8 @@ pub struct SiteConfig {
     pub on_noupdate: String,
     #[serde(rename = "update-default")]
     pub update_default: bool,
+    #[serde(rename = "node-max-age-days")]
+    pub node_max_age_days: u64,
     #[serde(rename = "dry-run")]
     pub dry_run: bool,
     #[serde(rename = "ignore-autoupdate-off")]

@@ -19,6 +19,8 @@ on-update = "/wetter/2020/sysupgrade"
 on-noupdate = "/wetter/2019/sysupgrade"
 # If true, nodes which are unknown to the map will be updated
 update-default = false
+# If a node has been offline for longer than this time, it will be ignored during upgrades
+node-max-age-days = 14
 
 # If enabled, all hosts will be sent to the noupdate url. However the software will log if an
 # update would have happened

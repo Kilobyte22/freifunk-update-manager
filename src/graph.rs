@@ -22,10 +22,18 @@ impl Graph {
         let mut id_lookup = HashMap::<crate::meshinfo::NodeID, NodeKey>::new();
         let mut ip_addrs = HashMap::new();
 
+        let now = chrono::Utc::now();
+        let node_cutoff_time = chrono::Duration::days(config.node_max_age_days as i64);
+
         log::debug!("Graph building pass 1: Setting up data");
         for node in &info.nodes {
 
             let mut inner_node = (*node).clone();
+
+            if now - node.last_seen > node_cutoff_time {
+                continue;
+            }
+
             // Workaround for hosts sending mac addresses as nexthop - host will be assumed
             // to not have any uplink
             let mut set_nexthop = None;
