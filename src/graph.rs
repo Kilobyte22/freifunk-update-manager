@@ -31,6 +31,11 @@ impl Graph {
             let mut inner_node = (*node).clone();
 
             if now - node.last_seen > node_cutoff_time {
+                log::trace!(
+                    "Node {} is offline for more than {} days, skipping",
+                    node.hostname,
+                    config.node_max_age_days
+                );
                 continue;
             }
 
