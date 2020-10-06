@@ -7,6 +7,7 @@ use crate::graph::UpdatePolicy;
 
 #[derive(Serialize, Default)]
 pub struct SiteDump {
+    counts: NodeCounts,
     updated: Vec<NodeInfo>,
     pending: Vec<NodeInfo>,
     failed: Vec<NodeInfo>,
@@ -20,6 +21,15 @@ struct NodeInfo {
     hostname: String,
     update_fail_count: u32,
     updated_at: Option<chrono::DateTime<chrono::Utc>>
+}
+
+#[derive(Serialize, Default)]
+struct NodeCounts {
+    updated: u32,
+    pending: u32,
+    failed: u32,
+    scheduled: u32,
+    broken: u32
 }
 
 pub async fn generate(state: &MainState) -> HashMap<String, SiteDump> {
@@ -61,6 +71,13 @@ pub async fn generate(state: &MainState) -> HashMap<String, SiteDump> {
                 }
             }
         }
+        site_ret.counts = NodeCounts {
+            updated: site_ret.updated.len() as u32,
+            pending: site_ret.pending.len() as u32,
+            failed: site_ret.failed.len() as u32,
+            scheduled: site_ret.scheduled.len() as u32,
+            broken: site_ret.broken.len() as u32
+        };
         ret.insert(format!("{}_{}", site_name, branch), site_ret);
     }
     ret
