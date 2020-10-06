@@ -47,7 +47,19 @@ async fn generate_graph(
         .json()
         .await?;
 
-    Ok(graph::Graph::build(&meshinfo, config, persistent))
+    let graph = graph::Graph::build(&meshinfo, config, persistent);
+
+    for (_, node) in &graph.nodes {
+        if !persistent.link_history.contains_key(&node.node.node_id) {
+            if let Some(uplink_key) = &node.uplink {
+                if let Some(uplink_node) = graph.nodes.get(*uplink_key) {
+                    persistent.link_history.insert(node.node.node_id.clone(), uplink_node.node.node_id.clone());
+                }
+            }
+        }
+    }
+
+    Ok(graph)
 }
 
 async fn configurator_task(

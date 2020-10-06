@@ -4,6 +4,8 @@ listen = "[::1]:6060"
 
 # URL Format: /{site}/{branch}/sysupgrade/
 
+enabled = true
+
 latest-version = "1.3"
 # site name, used for the URL
 name = "wetter"

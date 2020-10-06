@@ -10,6 +10,7 @@ pub struct Config {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct SiteConfig {
+    pub enabled: bool,
     #[serde(rename = "latest-version")]
     pub latest_version: String,
     pub name: String,

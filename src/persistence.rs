@@ -4,7 +4,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct PersistentState {
-    pub node_state: HashMap<NodeID, NodeState>
+    #[serde(default)]
+    pub node_state: HashMap<NodeID, NodeState>,
+    #[serde(default)]
+    pub link_history: HashMap<NodeID, NodeID>
 }
 
 impl PersistentState {

@@ -14,40 +14,45 @@ async fn update_check(
 ) -> impl Responder {
 
     let site_state = state.graphs.get(&(site.clone(), "any".to_owned())).
-        or_else(|| state.graphs.get(&(site, branch)));
+        or_else(|| state.graphs.get(&(site.clone(), branch)));
 
     if let Some(site_state) = site_state {
         let locked_graph = site_state.graph.read().await;
 
-        let should_update = if let Some(node_key) = locked_graph.ip_addrs.get(&ip) {
-            let node = locked_graph.nodes.get(*node_key).unwrap();
-            let pol = locked_graph.update_policy.get(*node_key).unwrap();
-            match pol {
-                UpdatePolicy::Ready => {
-                    log::info!(
+        let should_update = if site_state.config.enabled {
+            if let Some(node_key) = locked_graph.ip_addrs.get(&ip) {
+                let node = locked_graph.nodes.get(*node_key).unwrap();
+                let pol = locked_graph.update_policy.get(*node_key).unwrap();
+                match pol {
+                    UpdatePolicy::Ready => {
+                        log::info!(
                         "Host {} is not updated, pushing update and marking it as updated",
                         node.node.hostname
                     );
-                    let mut p = site_state.persistent.lock().await;
-                    p.update_node(&node.node.node_id);
-                    site_state.persistent_saver.clone().send(()).await.unwrap();
-                    true
-                },
-                UpdatePolicy::Finished => {
-                    log::info!("Host {} is already latest version", node.node.hostname);
-                    true
+                        let mut p = site_state.persistent.lock().await;
+                        p.update_node(&node.node.node_id);
+                        site_state.persistent_saver.clone().send(()).await.unwrap();
+                        true
+                    },
+                    UpdatePolicy::Finished => {
+                        log::info!("Host {} is already latest version", node.node.hostname);
+                        true
+                    }
+                    UpdatePolicy::Pending => {
+                        log::info!("Host {} is not yet ready to update", node.node.hostname);
+                        false
+                    }
+                    UpdatePolicy::Broken => {
+                        log::info!("Host {} is marked as broken, trying to update anyways...", node.node.hostname);
+                        true
+                    }
                 }
-                UpdatePolicy::Pending => {
-                    log::info!("Host {} is not yet ready to update", node.node.hostname);
-                    false
-                }
-                UpdatePolicy::Broken => {
-                    log::info!("Host {} is marked as broken, trying to update anyways...", node.node.hostname);
-                    true
-                }
+            } else {
+                site_state.config.update_default
             }
         } else {
-            site_state.config.update_default
+            log::info!("Site {} disabled, not performing any action", site)
+            false
         };
 
         Ok(
