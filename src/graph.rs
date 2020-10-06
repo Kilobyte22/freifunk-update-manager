@@ -19,7 +19,7 @@ pub struct Graph {
 impl Graph {
     pub fn build(info: &MeshInfo, config: &SiteConfig, persistent: &mut PersistentState) -> Graph {
         let mut nodes = DenseSlotMap::with_capacity_and_key(info.nodes.len());
-        let mut id_lookup = HashMap::<crate::meshinfo::NodeID, NodeKey>::new();
+        let mut id_lookup = HashMap::<crate::node_id::NodeID, NodeKey>::new();
         let mut ip_addrs = HashMap::new();
 
         let now = chrono::Utc::now();
@@ -28,7 +28,7 @@ impl Graph {
         log::debug!("Graph building pass 1: Setting up data");
         for node in &info.nodes {
 
-            let mut inner_node = (*node).clone();
+            let inner_node = (*node).clone();
 
             if now - node.last_seen > node_cutoff_time {
                 log::trace!(
@@ -39,18 +39,6 @@ impl Graph {
                 continue;
             }
 
-            // Workaround for hosts sending mac addresses as nexthop - host will be assumed
-            // to not have any uplink
-            let mut set_nexthop = None;
-            if let Some(nexthop) = &mut inner_node.gateway_nexthop {
-                if nexthop.is_mac() {
-                    log::debug!("Host {} has weird nexthop {}, using gateway", node.hostname, nexthop);
-                    set_nexthop = Some(node.gateway.clone());
-                }
-            };
-            if let Some(set_nexthop) = set_nexthop {
-                inner_node.gateway_nexthop = set_nexthop;
-            }
             let key = nodes.insert(NodeContainer {
                 node: inner_node,
                 uplink: None,
@@ -66,10 +54,17 @@ impl Graph {
         log::debug!("Graph building pass 2: building links");
         let mut downlinks = SecondaryMap::<NodeKey, Vec<NodeKey>>::new();
         for (key, node) in &mut nodes {
-            if let Some(uplink) = &node.node.gateway_nexthop {
+
+            let stored_uplink = persistent.link_history.get(&node.node.node_id);
+
+            let nexthop = &node.node.gateway_nexthop
+                .or_else(|| stored_uplink.map(|su| su.uplink));
+
+            if let Some(uplink) = nexthop {
                 let uplink_key = id_lookup.get(uplink)
                     .map(|key| *key)
                     .expect(&format!("ID {} not found", uplink));
+
                 node.uplink = Some(uplink_key);
 
                 if let Some(uplink_downlinks) = downlinks.get_mut(uplink_key) {

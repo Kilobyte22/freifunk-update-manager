@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::meshinfo::NodeID;
+use crate::node_id::NodeID;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default)]

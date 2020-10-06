@@ -1,3 +1,4 @@
+mod node_id;
 mod dump;
 mod persistence;
 mod web;

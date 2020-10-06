@@ -1,4 +1,4 @@
-use crate::meshinfo::NodeID;
+use crate::node_id::NodeID;
 
 use serde::Serialize;
 use crate::MainState;

@@ -85,7 +85,7 @@ impl <'a> Deserialize<'a> for MacAddr {
     }
 }
 
-fn unwrap_err<T, E>(value: Option<T>) -> Result<T, E> where E: serde::de::Error {
+pub(crate) fn unwrap_err<T, E>(value: Option<T>) -> Result<T, E> where E: serde::de::Error {
     if let Some(v) = value {
         Ok(v)
     } else {

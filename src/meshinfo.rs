@@ -2,6 +2,7 @@ use serde::{Serialize, Deserialize};
 use std::net::IpAddr;
 use std::fmt;
 use crate::mac::MacAddr;
+use crate::node_id::NodeID;
 
 #[derive(Deserialize, Debug)]
 pub struct MeshInfo {
@@ -80,20 +81,4 @@ pub enum LinkType {
     VPN,
     #[serde(rename = "other")]
     Other
-}
-
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone)]
-#[serde(transparent)]
-pub struct NodeID(String);
-
-impl NodeID {
-    pub fn is_mac(&self) -> bool {
-        self.0.contains(":")
-    }
-}
-
-impl fmt::Display for NodeID {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
 }
