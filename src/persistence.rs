@@ -7,7 +7,13 @@ pub struct PersistentState {
     #[serde(default)]
     pub node_state: HashMap<NodeID, NodeState>,
     #[serde(default)]
-    pub link_history: HashMap<NodeID, NodeID>
+    pub link_history: HashMap<NodeID, LinkInfo>
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LinkInfo {
+    pub uplink: NodeID,
+    pub since: chrono::DateTime<chrono::Utc>
 }
 
 impl PersistentState {

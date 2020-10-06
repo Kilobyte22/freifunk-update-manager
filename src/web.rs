@@ -51,7 +51,7 @@ async fn update_check(
                 site_state.config.update_default
             }
         } else {
-            log::info!("Site {} disabled, not performing any action", site)
+            log::info!("Site {} disabled, not performing any action", site);
             false
         };
 
