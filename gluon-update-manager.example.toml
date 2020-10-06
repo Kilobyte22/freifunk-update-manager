@@ -7,7 +7,7 @@ listen = "[::1]:6060"
 latest-version = "1.3"
 # site name, used for the URL
 name = "wetter"
-# branch name, used for the url
+# branch name, used for the url. Magic value `any` makes the update manager ignore the branch provided by the client
 branch = "stable"
 # A URL where to download the meshviewer.json output which is used by the map
 meshinfo = "http://map.ff-en.de/data/wtt/meshviewer.json"

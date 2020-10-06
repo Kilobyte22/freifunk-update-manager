@@ -13,7 +13,8 @@ async fn update_check(
     ForwardedFor(ip): ForwardedFor
 ) -> impl Responder {
 
-    let site_state = state.graphs.get(&(site, branch));
+    let site_state = state.graphs.get(&(site.clone(), "any".to_owned())).
+        or_else(|| state.graphs.get(&(site, branch)));
 
     if let Some(site_state) = site_state {
         let locked_graph = site_state.graph.read().await;
