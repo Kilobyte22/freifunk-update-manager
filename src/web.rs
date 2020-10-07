@@ -84,7 +84,6 @@ pub async fn main(state: Arc<MainState>) -> Result<(), failure::Error> {
     let listen = state.listen_addr.clone();
     HttpServer::new(move || {
         App::new()
-            .wrap(middleware::Logger::default())
             .data(state.clone())
             .service(
                 web::resource("/{site}/{branch}/sysupgrade/{file}")
