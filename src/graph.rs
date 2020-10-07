@@ -62,15 +62,16 @@ impl Graph {
 
             if let Some(uplink) = nexthop {
                 let uplink_key = id_lookup.get(uplink)
-                    .map(|key| *key)
-                    .expect(&format!("ID {} not found", uplink));
+                    .map(|key| *key);
 
-                node.uplink = Some(uplink_key);
+                if let Some(uplink_key) = uplink_key {
+                    node.uplink = Some(uplink_key);
 
-                if let Some(uplink_downlinks) = downlinks.get_mut(uplink_key) {
-                    uplink_downlinks.push(key);
-                } else {
-                    downlinks.insert(uplink_key, vec![key]);
+                    if let Some(uplink_downlinks) = downlinks.get_mut(uplink_key) {
+                        uplink_downlinks.push(key);
+                    } else {
+                        downlinks.insert(uplink_key, vec![key]);
+                    }
                 }
             }
         }
