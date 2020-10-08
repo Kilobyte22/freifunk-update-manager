@@ -1,4 +1,5 @@
 use std::fmt;
+use std::str::FromStr;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::ser::SerializeTuple;
 use serde::de::{Visitor, SeqAccess};
@@ -51,19 +52,7 @@ impl<'de> Visitor<'de> for NodeIDVisitor {
     where
         E: serde::de::Error
     {
-        let macless_str = v.replace(":", "");
-        if macless_str.len() != 12 {
-            return Err(E::custom("Invalid NodeID"));
-        }
-
-        Ok(NodeID([
-            conv_error(u8::from_str_radix(&macless_str[0..1], 16))?,
-            conv_error(u8::from_str_radix(&macless_str[2..3], 16))?,
-            conv_error(u8::from_str_radix(&macless_str[4..5], 16))?,
-            conv_error(u8::from_str_radix(&macless_str[6..7], 16))?,
-            conv_error(u8::from_str_radix(&macless_str[8..9], 16))?,
-            conv_error(u8::from_str_radix(&macless_str[10..11], 16))?
-        ]))
+        v.parse().map_err(|_| E::custom("Invalid NodeID"))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, <A as SeqAccess<'de>>::Error>
@@ -81,8 +70,8 @@ impl<'de> Visitor<'de> for NodeIDVisitor {
     }
 }
 
-fn conv_error<T, E, EE: serde::de::Error>(thing: Result<T, E>) -> Result<T, EE> {
-    thing.map_err(|_| EE::custom("Invalid NodeID"))
+fn conv_error<T, E>(thing: Result<T, E>) -> Result<T, ()> {
+    thing.map_err(|_| ())
 }
 
 impl fmt::Display for NodeID {
@@ -93,4 +82,42 @@ impl fmt::Display for NodeID {
             write!(f, "{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}", self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5])
         }
     }
+}
+
+impl FromStr for NodeID {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let macless_str = s.replace(":", "");
+        if macless_str.len() != 12 {
+            return Err(());
+        }
+
+
+
+        Ok(NodeID([
+            conv_error(u8::from_str_radix(&macless_str[0..2], 16))?,
+            conv_error(u8::from_str_radix(&macless_str[2..4], 16))?,
+            conv_error(u8::from_str_radix(&macless_str[4..6], 16))?,
+            conv_error(u8::from_str_radix(&macless_str[6..8], 16))?,
+            conv_error(u8::from_str_radix(&macless_str[8..10], 16))?,
+            conv_error(u8::from_str_radix(&macless_str[10..12], 16))?
+        ]))
+    }
+}
+
+#[test]
+fn test_deserialize() {
+    assert_eq!(
+        "001122334455".parse::<NodeID>().unwrap(), 
+        NodeID([00, 0x11, 0x22, 0x33, 0x44, 0x55])
+    );
+}
+
+#[test]
+fn test_deserialize_mac() {
+    assert_eq!(
+        "00:11:22:33:44:55".parse::<NodeID>().unwrap(), 
+        NodeID([00, 0x11, 0x22, 0x33, 0x44, 0x55])
+    );
 }

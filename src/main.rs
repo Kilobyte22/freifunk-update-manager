@@ -125,11 +125,15 @@ async fn main() -> Result<(), failure::Error> {
     for site in config.sites {
         log::info!("Preparing site {}/{}...", site.name, site.branch);
 
-        let persistent = Arc::new(Mutex::new(if site.state_file.exists() {
+        let pstate = if site.state_file.exists() {
             serde_json::from_str(&fs::read_to_string(&site.state_file).await?)?
         } else {
             Default::default()
-        }));
+        };
+
+        log::trace!("Loaded State: {:#?}", pstate);
+
+        let persistent = Arc::new(Mutex::new(pstate));
 
         let (mut pers_tx, pers_rx) = mpsc::channel(8);
 
