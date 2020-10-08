@@ -1,0 +1,15 @@
+[Unit]
+Description = "Smart Updater for Gluon Clients"
+
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/gluon-update-manager -c /etc/gluon-update-manager.toml
+Restart=always
+NotifyAccess=main
+# The following is a workaround for https://github.com/actix/actix-web/issues/1268
+# It is not needed on all platforms, however some older Ubuntu versions seem affected
+# If your platform is not affected, you can remove this line
+RuntimeMaxSec=3600
+
+[Install]
+WantedBy=multi-user.target
